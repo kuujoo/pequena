@@ -1,5 +1,6 @@
 # Pequena
 Small library for service style applications.
+WIP most of the planned features are not implemented.
 
 # Requirements
 - C++ 17
