@@ -153,7 +153,7 @@ namespace peq
 		T Reflector::first()
 		{
 			T r;
-			r._reflectorFromDbRow(_result, 0);
+			r.peq_reflectorFromDbRow(_result, 0);
 			return r;
 		}
 		template<typename T>
@@ -163,7 +163,7 @@ namespace peq
 			for (unsigned i = 0; i < _result->rowCount(); i++)
 			{
 				T r;
-				r._reflectorFromDbRow(_result, i);
+				r.peq_reflectorFromDbRow(_result, i);
 				results.push_back(std::move(r));
 			}
 

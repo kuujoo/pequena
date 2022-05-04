@@ -3,16 +3,16 @@
 #define DBCOLS_BEGIN \
 private: \
 friend class peq::database::Reflector; \
-	void _reflectorFromDbRow(const peq::database::SQLiteQueryResult* result, unsigned rowIndex) \
+	void peq_reflectorFromDbRow(const peq::database::SQLiteQueryResult* result, unsigned rowIndex) \
 	{ \
 		const auto& row = (*result)[rowIndex]; \
 
-#define DBCOLS_SET(m) _reflectorSet(m, row, result->columnIndex(#m));
+#define DBCOLS_SET(m) peq_reflectorSet(m, row, result->columnIndex(#m));
 
 #define DBCOLS_END \
 	} \
 	template<typename T> \
-	void _reflectorSet(T& V, const peq::database::SQLiteQueryResultRow& row, unsigned index) \
+	void peq_reflectorSet(T& V, const peq::database::SQLiteQueryResultRow& row, unsigned index) \
 	{ \
 		if(index == peq::database::SQLiteQueryResult::invalidColumn) return; \
 		V = row.get<T>(index); \
