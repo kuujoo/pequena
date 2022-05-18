@@ -299,9 +299,10 @@ namespace peq
 			void setTimeout(unsigned seconds);
 			int send(http::Response& response);
 			void update() override final;
+			void makePersistent();
 		private:
 			void dataAvailable() override;
-
+			bool _persistent;
 			bool _keepAlive;
 			unsigned _keepAliveTimeout;
 			unsigned _timeout;

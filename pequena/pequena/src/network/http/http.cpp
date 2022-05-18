@@ -968,7 +968,7 @@ Response Router::route(const Request& request)
 	}
 }
 
-HttpSession::HttpSession() : Session(), _keepAlive(false), _keepAliveTimeout(15), _keepAlivemMaxRequests(1000), _timeout(10), _requests(0)
+HttpSession::HttpSession() : Session(), _keepAlive(false), _persistent(false), _keepAliveTimeout(15), _keepAlivemMaxRequests(1000), _timeout(10), _requests(0)
 {
 	llhttp_settings_init(&_settings);
 	_settings.on_message_complete = &handleOnMessageComplete;
@@ -1036,6 +1036,11 @@ void HttpSession::dataAvailable()
 	}
 }
 
+void HttpSession::makePersistent()
+{
+	_persistent = true;
+}
+
 int HttpSession::send(http::Response& response)
 {
 	if (response.headers.empty() && response.body.empty()) return 0;
@@ -1055,6 +1060,11 @@ int HttpSession::send(http::Response& response)
 
 void HttpSession::update()
 {
+	if (_persistent)
+	{
+		return;
+	}
+
 	if (_keepAlive)
 	{
 		if (peq::time::epochS() - _idleStarted > static_cast<uint64_t>(_keepAliveTimeout) || _requests > _keepAlivemMaxRequests)
@@ -1063,7 +1073,8 @@ void HttpSession::update()
 			disconnect();
 		}
 	}
-	else {
+	else
+	{
 		if (_requests == 0) 
 		{
 			// Browsers like to open connections for better responsiviness.
