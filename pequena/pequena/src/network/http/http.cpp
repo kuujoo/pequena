@@ -26,7 +26,7 @@ namespace
 	const std::string s_apikeyHeader = "x-api-key";
 	const std::string s_cookie = "Cookie";
 	const std::string s_setCookieHeader = "Set-Cookie";
-
+	const std::string s_cacheControl = "Cache-Control";
 	// Values
 	const std::string s_keepAliveValue = "Keep-Alive";
 	const std::string s_closeValue = "Close";
@@ -694,6 +694,16 @@ Response Response::createText(Status status, const std::string& content)
 	d.resize(content.size());
 	memcpy(d.data(), content.c_str(), content.size());
 	return http::Response::create(status, "text", std::move(d));
+}
+
+Response Response::createEventStream(Status status, const std::string& content)
+{
+	http::Data d;
+	d.resize(content.size());
+	memcpy(d.data(), content.c_str(), content.size());
+	auto resp = http::Response::create(status, "event-stream", std::move(d));
+	resp.headers.push_back(peq::http::Header(s_cacheControl, "no-cache"));
+	return resp;
 }
 
 Response Response::createJson(Status status, const std::string& content)

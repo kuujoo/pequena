@@ -238,6 +238,7 @@ namespace peq
 
 		struct Response
 		{
+			static Response createEventStream(Status status, const std::string& content);
 			static Response createText(Status status, const std::string& content);
 			static Response createJson(Status status, const std::string& content);
 			static Response createFromFilename(Status status, const std::string& filename, http::Data&& content);
