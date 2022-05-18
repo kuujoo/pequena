@@ -143,7 +143,7 @@ namespace
 		std::string type;
 	};
 
-	MimeType s_mimeTypes[347] = {
+	MimeType s_mimeTypes[348] = {
 		{"*3gpp", "audio/3gpp"},
 		{"*jpm", "video/jpm"},
 		{"*mp3", "audio/mp3"},
@@ -189,6 +189,7 @@ namespace
 		{"dbk", "application/docbook+xml"},
 		{"deb", "application/octet-stream"},
 		{"def", "text/plain"},
+		{"event-stream", "text/event-stream"},
 		{"deploy", "application/octet-stream"},
 		{"disposition-notification", "message/disposition-notification"},
 		{"dist", "application/octet-stream"},
