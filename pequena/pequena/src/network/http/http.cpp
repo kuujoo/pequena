@@ -1044,10 +1044,6 @@ void HttpSession::dataAvailable()
 			}
 		}
 	}
-	else
-	{
-		disconnect();
-	}
 }
 
 void HttpSession::makePersistent()
