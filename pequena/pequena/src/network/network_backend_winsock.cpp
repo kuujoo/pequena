@@ -72,8 +72,12 @@ public:
 	int receive(char* data, unsigned dataLength) override
 	{
 		auto result = ::recv(_socket, data, dataLength, 0);
-		if (result == 0 || result == SOCKET_ERROR && WSAGetLastError() == WSAECONNRESET)
+		if (result == SOCKET_ERROR)
 		{
+			if (WSAGetLastError() == WSAECONNRESET || WSAGetLastError() == WSAECONNABORTED)
+			{
+				_socket = INVALID_SOCKET;
+			}
 		}
 		return result;
 	}
@@ -82,6 +86,10 @@ public:
 		auto result = ::send(_socket, (char*)data, dataLength, 0);
 		if (result == SOCKET_ERROR)
 		{
+			if (WSAGetLastError() == WSAECONNRESET || WSAGetLastError() == WSAECONNABORTED)
+			{
+				_socket = INVALID_SOCKET;
+			}
 		}
 		return result;
 	}
