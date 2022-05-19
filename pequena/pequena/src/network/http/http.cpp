@@ -1188,4 +1188,3 @@ int HttpSession::handleOnUrl(llhttp_t* h, const char* at, size_t length)
 	session->_parseState.url = Url(std::string(at, length));
 	return 0;
 }
-
