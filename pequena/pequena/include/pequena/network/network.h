@@ -2,6 +2,7 @@
 #include "pequena/concurrency/task.h"
 #include "pequena/concurrency/runner.h"
 #include "pequena/stringutils.h"
+#include <vector>
 #include <memory>
 #include <string>
 #include <deque>
@@ -125,6 +126,8 @@ namespace peq {
 		
 		class Server;
 		class ConnectionTask;
+
+		using Data = std::vector<char>;
 
 		class Session
 		{

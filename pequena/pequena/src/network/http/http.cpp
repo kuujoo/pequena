@@ -519,7 +519,7 @@ namespace
 			return mimeTypeByExtension(file.substr(dot + 1));
 		}
 	}
-	http::Data toData(const http::Response& response)
+	peq::network::Data toData(const http::Response& response)
 	{
 		std::stringstream ss;
 		ss << "HTTP/" << response.version.major << "." << response.version.minor << " " << (int)response.status << " " << toString(response.status) << "\r\n";
@@ -531,7 +531,7 @@ namespace
 
 		auto str = ss.str();
 
-		http::Data data;
+		peq::network::Data data;
 		data.resize(str.size() + response.body.size());
 		memcpy(data.data(), str.c_str(), str.length());
 		memcpy(data.data() + str.size(), response.body.data(), response.body.size());
@@ -690,45 +690,49 @@ bool Request::wantsToClose() const
 
 Response Response::createText(Status status, const std::string& content)
 {
-	http::Data d;
+	peq::network::Data d;
 	d.resize(content.size());
 	memcpy(d.data(), content.c_str(), content.size());
 	return http::Response::create(status, "text", std::move(d));
 }
 
-Response Response::createEventStream(Status status, const std::string& content)
+Response Response::createEventStream(Status status)
 {
-	http::Data d;
-	d.resize(content.size());
-	memcpy(d.data(), content.c_str(), content.size());
-	auto resp = http::Response::create(status, "event-stream", std::move(d));
+	auto resp = http::Response::create(status, "event-stream");
 	resp.headers.push_back(peq::http::Header(s_cacheControl, "no-cache"));
 	return resp;
 }
 
 Response Response::createJson(Status status, const std::string& content)
 {
-	http::Data d;
+	peq::network::Data d;
 	d.resize(content.size());
 	memcpy(d.data(), content.c_str(), content.size());
 	return http::Response::create(status, "json", std::move(d));
 }
 
-Response Response::createFromFilename(Status status, const std::string& filename, http::Data &&content)
+Response Response::createFromFilename(Status status, const std::string& filename, peq::network::Data &&content)
 {
 	std::filesystem::path filePath = std::filesystem::u8path(filename.data());
 	auto e = filePath.extension().u8string();
-	return http::Response::create(status, e, std::forward<http::Data>(content));
+	return http::Response::create(status, e, std::forward<peq::network::Data>(content));
 }
 
-Response Response::create(Status status, const std::string& type, http::Data&& content)
+Response Response::create(Status status, const std::string& type, peq::network::Data&& content)
 {
-	Response r(status, std::forward<http::Data>(content));
+	Response r(status, std::forward<peq::network::Data>(content));
 	r.headers.push_back(Header::createContentTypeResponse(type));
 	return r;
 }
 
-Response::Response(Status stat, http::Data&& content)
+Response Response::create(Status status, const std::string& type)
+{
+	Response r(status);
+	r.headers.push_back(Header::createContentTypeResponse(type));
+	return r;
+}
+
+Response::Response(Status stat, peq::network::Data&& content)
 {
 	http::Response resp;
 	version.minor = 1;

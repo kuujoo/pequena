@@ -218,15 +218,13 @@ namespace peq
 			Parameters params;
 		};
 
-		using Data = std::vector<char>;
-
 		struct Request
 		{
 			Method method;
 			Url url;
 			Version version;
 			std::vector<Header> headers;
-			Data body;
+			peq::network::Data body;
 			const Authorization auth() const;
 			const Apikey apiKey() const;
 			const Cookie cookie(const std::string& cookie) const;
@@ -238,19 +236,20 @@ namespace peq
 
 		struct Response
 		{
-			static Response createEventStream(Status status, const std::string& content);
+			static Response createEventStream(Status status);
 			static Response createText(Status status, const std::string& content);
 			static Response createJson(Status status, const std::string& content);
-			static Response createFromFilename(Status status, const std::string& filename, http::Data&& content);
-			static Response create(Status status, const std::string& type, http::Data&& content);
+			static Response createFromFilename(Status status, const std::string& filename, peq::network::Data&& content);
+			static Response create(Status status, const std::string& type, peq::network::Data&& content);
+			static Response create(Status status, const std::string& type);
 			Response() {}
-			Response(Status status, http::Data&& content);
+			Response(Status status, peq::network::Data&& content);
 			Response(Status status);
 			void setCookie(const Cookie& cookie);
 			Status status;
 			http::Version version;
 			std::vector<Header> headers;
-			Data body;
+			peq::network::Data body;
 		};
 
 		class Router

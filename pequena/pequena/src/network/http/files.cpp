@@ -65,15 +65,15 @@ std::string Files::getPath(const std::string& url) const
 	}
 }
 
-Data Files::get(const std::string& path) const
+peq::network::Data Files::get(const std::string& path) const
 {
 	std::ifstream fs(path, std::ios::in | std::ios::binary);
-	if (!fs.is_open()) return Data();
+	if (!fs.is_open()) return peq::network::Data();
 
 	fs.seekg(0, std::ios::end);
 	auto l = fs.tellg();
 	fs.seekg(0, std::ios::beg);
-	Data data;
+	peq::network::Data data;
 	data.resize(l);
 	fs.read(data.data(), l);
 	return data;
