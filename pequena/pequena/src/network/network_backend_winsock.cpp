@@ -243,11 +243,13 @@ public:
 
 		fd_set readFds;
 		FD_ZERO(&readFds);
-
+		std::map<SOCKET, ClientSocketRef> socketMap;
 		for (auto it : _sockets)
 		{
 			auto s = std::dynamic_pointer_cast<WINSOCKClientSocket>(it.lock());
 			FD_SET( (SOCKET)s->id(), &readFds);
+
+			socketMap[(SOCKET)s->id()] = s;
 		}
 
 		auto result = select(readFds.fd_count, &readFds, nullptr, nullptr, &tv);
@@ -266,8 +268,9 @@ public:
 			{		
 				if (m_readyRead)
 				{
-					auto socket = _sockets[i].lock();
-					m_readyRead(socket);
+					auto s = socketMap.find( readFds.fd_array[i] );
+					if (s == socketMap.end()) continue;
+					m_readyRead(s->second);
 				}
 			}
 		}
