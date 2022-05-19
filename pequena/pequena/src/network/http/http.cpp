@@ -750,7 +750,6 @@ Response::Response(Status stat)
 	version.major = 1;
 	status = stat;
 	headers.push_back(http::Header(s_dateHeader, httpDateNow()));
-	headers.push_back(http::Header(s_contentLengthHeader, 0));
 }
 
 void Response::setCookie(const Cookie& cookie)
@@ -995,7 +994,7 @@ HttpSession::HttpSession() : Session(), _keepAlive(false), _persistent(false), _
 	_settings.on_body = &handleOnBody;
 	llhttp_init(&_parser, HTTP_BOTH, &_settings);
 	_parser.data = this;
-
+	resetIdle();
 	peq::log::debug("http session created");
 }
 
@@ -1033,7 +1032,8 @@ void HttpSession::dataAvailable()
 				}
 
 				_parseState = ParseState();
-				_idleStarted = peq::time::epochS();
+				
+				resetIdle();
 
 				httpRequestAvailable(_currentRequest);
 
@@ -1055,11 +1055,26 @@ void HttpSession::makePersistent()
 	_persistent = true;
 }
 
+void HttpSession::resetIdle()
+{
+	_idleStarted = peq::time::epochS();
+}
+
+int HttpSession::send(const char* data, unsigned dataLength)
+{
+	resetIdle();
+	return Session::send(data, dataLength);
+}
+
+int HttpSession::sendAsync(const char* data, unsigned dataLength)
+{
+	resetIdle();
+	return Session::sendAsync(data, dataLength);
+}
+
 int HttpSession::send(http::Response& response)
 {
 	if (response.headers.empty() && response.body.empty()) return 0;
-
-	_idleStarted = peq::time::epochS();
 
 	if (_currentRequest.wantsToKeepAlive())
 	{

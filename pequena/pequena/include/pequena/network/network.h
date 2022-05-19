@@ -135,9 +135,11 @@ namespace peq {
 			virtual void connected() = 0;
 			virtual void dataAvailable() = 0;
 			virtual void disconnected() = 0;
+			void processAsyncSendData();
 		protected:
 			int receive(char* data, unsigned dataLength);
-			int send(const char* data, unsigned dataLength);
+			virtual int send(const char* data, unsigned dataLength);
+			virtual int sendAsync(const char* data, unsigned dataLength);
 			void disconnect();
 			virtual void update() {};
 			SocketInfo info() const
@@ -157,6 +159,8 @@ namespace peq {
 			friend class ConnectionTask;
 			ClientSocketRef _socket;
 			SessionFilterRef _filter;
+			std::mutex _asyncSendDataMutex;
+			std::vector<Data> _asyncSendData;
 		};
 
 		using SessionRef = std::shared_ptr<Session>;

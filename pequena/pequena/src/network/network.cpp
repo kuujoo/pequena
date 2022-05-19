@@ -53,6 +53,27 @@ SocketSelectorRef SocketSelector::create() {
 }
 
 
+void Session::processAsyncSendData()
+{
+	std::lock_guard<std::mutex> lock(_asyncSendDataMutex);
+	for (auto& it : _asyncSendData)
+	{
+		send(it.data(), it.size());
+	}
+	_asyncSendData.clear();
+}
+
+int Session::sendAsync(const char* data, unsigned dataLength)
+{
+	std::lock_guard<std::mutex> lock(_asyncSendDataMutex);
+
+	peq::network::Data d;
+	d.resize(dataLength);
+	memcpy(d.data(), data, dataLength);
+	_asyncSendData.push_back(d);
+	return dataLength;
+}
+
 int Session::receive(char* data, unsigned dataLength)
 {
 	if (_filter)
@@ -154,6 +175,13 @@ void Server::ConnectionTask::execute()
 			
 		}
 		_newSockets.clear();
+
+		// Send pending data
+		for (auto it : _sockets)
+		{
+			auto handler = _handlers.find(it->id());
+			handler->second->processAsyncSendData();
+		}
 
 		_selector->wait(10);
 
