@@ -144,73 +144,80 @@ Server::ConnectionTask::ConnectionTask() : _abort(false)
 
 void Server::ConnectionTask::awake()
 {
-	_selector->m_readyRead = std::bind(&ConnectionTask::readyRead, this, std::placeholders::_1);
 }
 
 void Server::ConnectionTask::abort()
 {
-	std::unique_lock<std::mutex> lock(_mutex);
-	_selector->m_readyRead = std::bind(&ConnectionTask::readyRead, this, std::placeholders::_1);
 	_condition.notify_one();
 }
 
 void Server::ConnectionTask::execute()
 {
+	std::vector<ClientSocketRef> sockets;
+	std::map<unsigned, SessionRef> handlers;
+	std::vector<ClientSocketRef> dcSockets;
+
+	_selector->m_readyRead = [&handlers](peq::network::ClientSocketRef socket)
+	{
+		auto handler = handlers.find(socket->id());
+		if (handler != handlers.end())
+		{
+			handler->second->doHandle();
+		}
+	};
 	while (!_abort)
 	{
-		std::unique_lock<std::mutex> lock(_mutex);
-		_condition.wait(lock, [this]() {
-			return !_sockets.empty() || _abort || !_newSockets.empty();
-		});
-
-		for (auto it : _newSockets)
 		{
-			_sockets.push_back(it);
-			_selector->add(it);
-			auto handler = _handlers.find(it->id());
-			if (handler != _handlers.end())
-			{
-				handler->second->connected();
+			std::unique_lock<std::mutex> lock(_mutex);
+			_condition.wait(lock, [this, &sockets]() {
+				return !sockets.empty() || _abort || !_newSockets.empty();
+			});
+
+			for (auto it : _newSockets) {
+				sockets.push_back(it.socket);
+				_selector->add(it.socket);
+				handlers[it.socket->id()] = it.handler;
+				it.handler->connected();
+
 			}
-			
+			_newSockets.clear();
 		}
-		_newSockets.clear();
 
 		// Send pending data
-		for (auto it : _sockets)
+		for (auto it : sockets)
 		{
-			auto handler = _handlers.find(it->id());
+			auto handler = handlers.find(it->id());
 			handler->second->processAsyncSendData();
 		}
 
 		_selector->wait(10);
 
-		for (auto it : _sockets)
+		for (auto it : sockets)
 		{
-			auto handler = _handlers.find(it->id());
+			auto handler = handlers.find(it->id());
 			handler->second->update();
 
 			if (it->isDisconnected())
 			{
 				
-				auto handler = _handlers.find(it->id());
-				if (handler != _handlers.end())
+				auto handler = handlers.find(it->id());
+				if (handler != handlers.end())
 				{
 					handler->second->disconnected();
 				}
 
-				_dcSockets.push_back(it);
+				dcSockets.push_back(it);
 			}
 		}
 
-		for (auto it : _dcSockets)
+		for (auto it : dcSockets)
 		{
 			_selector->remove(it);
-			_sockets.erase(std::remove(_sockets.begin(), _sockets.end(), it));
-			_handlers.erase(it->id());
+			sockets.erase(std::remove(sockets.begin(), sockets.end(), it));
+			handlers.erase(it->id());
 		}
 
-		_dcSockets.clear();
+		dcSockets.clear();
 	}
 }
 
@@ -221,22 +228,14 @@ void Server::ConnectionTask::destroy()
 
 void Server::ConnectionTask::add(ClientSocketRef socket,  SessionRef handler)
 {
-	std::unique_lock<std::mutex> lock(_mutex);
-	_newSockets.push_back(socket);
-	if (handler != nullptr)
 	{
-		_handlers[socket->id()] = handler;
+		std::lock_guard<std::mutex> lock(_mutex);
+		NewSocket ns;
+		ns.handler = handler;
+		ns.socket = socket;
+		_newSockets.push_back(ns);
 	}
 	_condition.notify_one();
-}
-
-void Server::ConnectionTask::readyRead(ClientSocketRef socket)
-{
-	auto handler = _handlers.find(socket->id());
-	if (handler != _handlers.end())
-	{
-		handler->second->doHandle();
-	}
 }
 
 Server& Server::setThreads(unsigned threads)

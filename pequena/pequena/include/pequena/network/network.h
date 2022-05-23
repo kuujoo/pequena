@@ -191,16 +191,17 @@ namespace peq {
 				void execute() override;
 				void destroy() override;
 				void add(ClientSocketRef socket, SessionRef handler);
-				void readyRead(ClientSocketRef socket);
 				void abort();
 			private:
 				SocketSelectorRef _selector;
 				std::condition_variable _condition;
 				std::mutex _mutex;
-				std::vector<ClientSocketRef> _newSockets;
-				std::vector<ClientSocketRef> _sockets;
-				std::map<unsigned, SessionRef> _handlers;
-				std::vector<ClientSocketRef> _dcSockets;
+				struct NewSocket
+				{
+					ClientSocketRef socket;
+					SessionRef handler;
+				};
+				std::vector<NewSocket> _newSockets;
 				bool _abort;
 			};
 		public:
