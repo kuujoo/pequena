@@ -14,12 +14,22 @@ size_t peq::crypto::hmac::sha256(const void* key, const size_t keylen, const voi
 
 std::string peq::crypto::hex(const void* data, size_t datalen)
 {
-	return "";
+	static const char characters[] = "0123456789ABCDEF";
+	std::string result;
+
+	result.resize(datalen * 2);
+	for (unsigned i = 0; i < datalen; i++)
+	{
+		char* c = (char*)data;
+		result[i * 2] = characters[ c[i] >> 4 ];
+		result[i * 2 + 1] = characters[c[i] & 0x0F];
+	}
+	return result;
 }
 
 std::string peq::crypto::base64Encode(const void* data, size_t datalen)
 {
-	return base64_encode((const unsigned char*)data, size, false);
+	return base64_encode((const unsigned char*)data, datalen, false);
 }
 
 std::vector<uint8_t> peq::crypto::base64Decode(const std::string& in)
