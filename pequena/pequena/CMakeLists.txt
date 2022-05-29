@@ -17,6 +17,11 @@ add_library(pequena
 	>
 	$<$<PLATFORM_ID:Linux>:
 	"src/network/network_backend_bsd.cpp"
+	"src/platform/platform_backend_linux.cpp"
+	>
+	$<$<PLATFORM_ID:Darwin>:
+	"src/network/network_backend_bsd.cpp"
+	"src/platform/platform_backend_osx.cpp"
 	>
 	"src/network/network.cpp"
 	"src/network/network_backend_botan.cpp"
