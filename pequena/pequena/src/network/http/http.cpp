@@ -1083,6 +1083,12 @@ int HttpSession::send(http::Response& response)
 	return Session::send(d.data(), d.size());
 }
 
+int HttpSession::send(http::Response&& response)
+{
+	http::Response resp = response;
+	return send(resp);
+}
+
 void HttpSession::update()
 {
 	if (_persistent)

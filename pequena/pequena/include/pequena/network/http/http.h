@@ -298,6 +298,7 @@ namespace peq
 			// this is used if the server does not get any http-requests
 			void setTimeout(unsigned seconds);
 			int send(http::Response& response);
+			int send(http::Response&& response);
 			void update() override final;
 			void makePersistent();
 			void resetIdle();
