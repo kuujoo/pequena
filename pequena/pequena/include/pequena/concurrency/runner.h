@@ -1,6 +1,7 @@
 #pragma once
 
 #include "task.h"
+#include <vector>
 #include <memory>
 #include <functional>
 #include <thread>
