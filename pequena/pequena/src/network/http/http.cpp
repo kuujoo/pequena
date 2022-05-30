@@ -543,7 +543,15 @@ namespace
 Header Header::createKeepAliveResponse(unsigned seconds, unsigned requests)
 {
 	std::stringstream st;
-	st << "timeout=" << seconds << ", max=" << requests;
+	if (requests == 0)
+	{
+		st << "timeout=" << seconds;
+	}
+	else
+	{
+		st << "timeout=" << seconds << ", max=" << requests;
+	}
+
 	return Header(s_keepAliveHeader, st.str());
 }
 
@@ -1026,9 +1034,23 @@ void HttpSession::dataAvailable()
 				_currentRequest.secure = secure();
 				_requests++;
 
-				if (_currentRequest.wantsToKeepAlive())
+				if (_parseState.version.major == 1 && _parseState.version.minor == 0)
 				{
+					// http 1.0 close by default
+					if (_currentRequest.wantsToKeepAlive())
+					{
+						_keepAlive = true;
+					}
+				}
+				else if (_parseState.version.major == 1 && _parseState.version.minor == 1)
+				{
+					// http 1.1 keep-alive by default
 					_keepAlive = true;
+
+					if (_currentRequest.wantsToClose())
+					{
+						_keepAlive = false;
+					}
 				}
 
 				_parseState = ParseState();
@@ -1037,7 +1059,7 @@ void HttpSession::dataAvailable()
 
 				httpRequestAvailable(_currentRequest);
 
-				if (!_currentRequest.wantsToKeepAlive())
+				if (!_keepAlive || _requests > _keepAlivemMaxRequests)
 				{
 					disconnect();
 				}
@@ -1064,12 +1086,45 @@ int HttpSession::send(const char* data, unsigned dataLength)
 
 int HttpSession::send(http::Response& response)
 {
-	if (response.headers.empty() && response.body.empty()) return 0;
-
-	if (_currentRequest.wantsToKeepAlive())
+	if (response.headers.empty() && response.body.empty())
 	{
-		response.headers.push_back(Header::createKeepAliveResponse(_keepAliveTimeout, _keepAlivemMaxRequests));
+		return 0;
 	}
+
+
+	if (_currentRequest.version.major == 1 && _currentRequest.version.minor == 0)
+	{
+		if (_currentRequest.wantsToKeepAlive())
+		{
+			if (_requests > _keepAlivemMaxRequests) 
+			{
+				response.headers.push_back(Header(s_connectionHeader, s_closeValue));
+			}
+			else
+			{
+				response.headers.push_back(Header(s_connectionHeader, s_keepAliveHeader));
+				response.headers.push_back(Header::createKeepAliveResponse(_keepAliveTimeout, _keepAlivemMaxRequests));
+			}
+		}
+	}
+	else if (_currentRequest.version.major == 1 && _currentRequest.version.minor == 1)
+	{
+		if (!_currentRequest.wantsToClose())
+		{
+			if (_requests > _keepAlivemMaxRequests)
+			{
+				response.headers.push_back(Header(s_connectionHeader, s_closeValue));
+			}
+			else
+			{
+				response.headers.push_back(Header(s_connectionHeader, s_keepAliveHeader));
+				response.headers.push_back(Header::createKeepAliveResponse(_keepAliveTimeout, _keepAlivemMaxRequests));
+			}
+		}
+	}
+
+
+
 	auto d = toData(response);
 
 	peq::log::debug("http response sent");
@@ -1092,23 +1147,10 @@ void HttpSession::update()
 
 	if (_keepAlive)
 	{
-		if (peq::time::epochS() - _idleStarted > static_cast<uint64_t>(_keepAliveTimeout) || _requests > _keepAlivemMaxRequests)
+		if (peq::time::epochS() - _idleStarted > static_cast<uint64_t>(_keepAliveTimeout))
 		{
 			peq::log::debug("disconnect http session (keep-alive timeout)");
 			disconnect();
-		}
-	}
-	else
-	{
-		if (_requests == 0) 
-		{
-			// Browsers like to open connections for better responsiviness.
-			// Close these temporary connections after _timeout seconds
-			if (peq::time::epochS() - _idleStarted > static_cast<uint64_t>(_timeout)) 		
-			{
-				peq::log::debug("disconnect http session (timeout)");
-				disconnect();
-			}
 		}
 	}
 }
