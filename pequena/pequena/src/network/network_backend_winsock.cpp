@@ -83,15 +83,24 @@ public:
 	}
 	int send(const char* data, unsigned dataLength) override
 	{
-		auto result = ::send(_socket, (char*)data, dataLength, 0);
-		if (result == SOCKET_ERROR)
+		int sent = 0;
+		int left = dataLength;
+		do
 		{
-			if (WSAGetLastError() == WSAECONNRESET || WSAGetLastError() == WSAECONNABORTED)
-			{
-				_socket = INVALID_SOCKET;
+			auto result = ::send(_socket, (char*)data + dataLength - left, left, 0);
+			if (result > 0) {
+				left -= result;
+				sent += result;
 			}
-		}
-		return result;
+			if (result == SOCKET_ERROR) {
+				if (WSAGetLastError() == WSAECONNRESET || WSAGetLastError() == WSAECONNABORTED) {
+					_socket = INVALID_SOCKET;
+				}
+				return -1;
+			}
+		} while (left > 0);
+
+		return sent;
 	}
 	SocketInfo info() const
 	{
