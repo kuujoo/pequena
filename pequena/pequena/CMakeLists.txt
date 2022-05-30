@@ -92,4 +92,9 @@ if (PEQ_BOTAN_INCLUDE AND PEQ_BOTAN_LIB)
 	endif()
 endif()
 
+# uuid library requires corefoundation
+if (APPLE)
+	set(LIBS ${LIBS} "-framework CoreFoundation")
+endif()
+
 target_link_libraries(pequena PUBLIC ${LIBS})
