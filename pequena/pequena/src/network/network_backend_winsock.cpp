@@ -145,7 +145,7 @@ private:
 class WINSOCKServerSocket : public ServerSocket
 {
 public:
-	WINSOCKServerSocket(int port)
+	WINSOCKServerSocket(int port) : _id(0)
 	{
 		struct addrinfo hints;
 		ZeroMemory(&hints, sizeof(hints));
@@ -165,6 +165,8 @@ public:
 		}
 
 		_socket = socket(_info->ai_family, _info->ai_socktype, _info->ai_protocol);
+		_id = static_cast<unsigned>(_socket);
+
 		if (_socket == INVALID_SOCKET)
 		{
 			printf("socket failed with error: %ld\n", WSAGetLastError());
@@ -195,6 +197,8 @@ public:
 				return;
 			}
 		}
+
+		
 		_ok = true;
 	}
 	ClientSocketRef accept()
@@ -221,7 +225,12 @@ public:
 	bool ok() const {
 		return _ok;
 	}
+	unsigned id() const override
+	{
+		return _id;
+	}
 private:
+	unsigned _id;
 	SOCKET _socket = INVALID_SOCKET;
 	struct addrinfo* _info = nullptr;
 	bool _ok = false;
@@ -235,15 +244,18 @@ public:
 	{
 		
 	}
-	void add(ClientSocketRef socket) override
+	void add(SocketRef socket) override
 	{
 		_sockets.push_back(socket);
 	}
-	void wait(unsigned timeoutms) override
+
+	std::vector<SocketRef> wait(unsigned timeoutms) override
 	{
+		std::vector<SocketRef> readyReadSockets;
+
 		if (_sockets.empty())
 		{
-			return;
+			return readyReadSockets;
 		}
 
 		TIMEVAL tv = { 0 };
@@ -252,10 +264,10 @@ public:
 
 		fd_set readFds;
 		FD_ZERO(&readFds);
-		std::map<SOCKET, ClientSocketRef> socketMap;
+		std::map<SOCKET, SocketRef> socketMap;
 		for (auto it : _sockets)
 		{
-			auto s = std::dynamic_pointer_cast<WINSOCKClientSocket>(it.lock());
+			auto s = it.lock();
 			FD_SET( (SOCKET)s->id(), &readFds);
 
 			socketMap[(SOCKET)s->id()] = s;
@@ -268,31 +280,33 @@ public:
 
 		if (result == 0)
 		{
-			return;
+			return readyReadSockets;
 		}
 
 		for (int i = 0; i < readFds.fd_count; i++)
 		{
 			if ( FD_ISSET(readFds.fd_array[i], &readFds) ) 
 			{		
-				if (m_readyRead)
+				auto s = socketMap.find( readFds.fd_array[i] );
+				if (s == socketMap.end())
 				{
-					auto s = socketMap.find( readFds.fd_array[i] );
-					if (s == socketMap.end()) continue;
-					m_readyRead(s->second);
+					continue;
 				}
+				readyReadSockets.push_back(s->second);
 			}
 		}
+
+		return readyReadSockets;
 	}
-	void remove(ClientSocketRef socket) override
+	void remove(SocketRef socket) override
 	{
-		_sockets.erase(std::remove_if(_sockets.begin(), _sockets.end(), [socket](std::weak_ptr<ClientSocket> s)->bool
+		_sockets.erase(std::remove_if(_sockets.begin(), _sockets.end(), [socket](std::weak_ptr<Socket> s)->bool
 		{
 			return socket == s.lock();
 		}));
 	}
 private:
-	std::vector<std::weak_ptr<ClientSocket>> _sockets;
+	std::vector<std::weak_ptr<peq::network::Socket>> _sockets;
 };
 
 void peq::network::awake()

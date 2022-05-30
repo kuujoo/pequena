@@ -52,28 +52,6 @@ SocketSelectorRef SocketSelector::create() {
 	return createSocketSelector();
 }
 
-
-void Session::processAsyncSendData()
-{
-	std::lock_guard<std::mutex> lock(_asyncSendDataMutex);
-	for (auto& it : _asyncSendData)
-	{
-		send(it.data(), it.size());
-	}
-	_asyncSendData.clear();
-}
-
-int Session::sendAsync(const char* data, unsigned dataLength)
-{
-	std::lock_guard<std::mutex> lock(_asyncSendDataMutex);
-
-	peq::network::Data d;
-	d.resize(dataLength);
-	memcpy(d.data(), data, dataLength);
-	_asyncSendData.push_back(d);
-	return dataLength;
-}
-
 int Session::receive(char* data, unsigned dataLength)
 {
 	if (_filter)
@@ -139,7 +117,7 @@ void Session::bindFilter(SessionFilterRef filter)
 
 Server::ConnectionTask::ConnectionTask() : _abort(false)
 {
-	_selector = createSocketSelector();
+	
 }
 
 void Server::ConnectionTask::awake()
@@ -157,14 +135,8 @@ void Server::ConnectionTask::execute()
 	std::map<unsigned, SessionRef> handlers;
 	std::vector<ClientSocketRef> dcSockets;
 
-	_selector->m_readyRead = [&handlers](peq::network::ClientSocketRef socket)
-	{
-		auto handler = handlers.find(socket->id());
-		if (handler != handlers.end())
-		{
-			handler->second->doHandle();
-		}
-	};
+	SocketSelectorRef selector = createSocketSelector();
+
 	while (!_abort)
 	{
 		{
@@ -175,7 +147,7 @@ void Server::ConnectionTask::execute()
 
 			for (auto it : _newSockets) {
 				sockets.push_back(it.socket);
-				_selector->add(it.socket);
+				selector->add(it.socket);
 				handlers[it.socket->id()] = it.handler;
 				it.handler->connected();
 
@@ -183,14 +155,14 @@ void Server::ConnectionTask::execute()
 			_newSockets.clear();
 		}
 
-		// Send pending data
-		for (auto it : sockets)
-		{
+		auto readSockets = selector->wait(10);
+		for (auto it : readSockets) {
 			auto handler = handlers.find(it->id());
-			handler->second->processAsyncSendData();
+			if (handler != handlers.end())
+			{
+				handler->second->doHandle();
+			}
 		}
-
-		_selector->wait(10);
 
 		for (auto it : sockets)
 		{
@@ -212,7 +184,7 @@ void Server::ConnectionTask::execute()
 
 		for (auto it : dcSockets)
 		{
-			_selector->remove(it);
+			selector->remove(it);
 			sockets.erase(std::remove(sockets.begin(), sockets.end(), it));
 			handlers.erase(it->id());
 		}
@@ -223,7 +195,6 @@ void Server::ConnectionTask::execute()
 
 void Server::ConnectionTask::destroy()
 {
-	_selector->m_readyRead = nullptr;
 }
 
 void Server::ConnectionTask::add(ClientSocketRef socket,  SessionRef handler)
@@ -294,10 +265,15 @@ void Server::start()
 
 	int currentPool = 0;
 
-
+	peq::network::SocketSelectorRef selector = peq::network::createSocketSelector();
+	selector->add(listenSocket);
 	while (!_stop.load())
 	{
-		auto clientSocket = listenSocket->accept();
+		auto results = selector->wait(1000);
+		if (results.empty()) {
+			continue;
+		}
+		auto clientSocket = std::dynamic_pointer_cast<peq::network::ServerSocket>(results.front())->accept();
 		if (clientSocket)
 		{
 			peq::log::debug("Accepted connection");

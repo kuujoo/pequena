@@ -16,11 +16,12 @@ namespace peq {
 	namespace network {
 
 		constexpr unsigned receiveBufferSize = 2048;
-
+		class Socket;
 		class ServerSocket;
 		class ClientSocket;
 		class SessionFilter;
 		class SertificateContainer;
+		using SocketRef = std::shared_ptr<Socket>;
 		using ServerSocketRef = std::shared_ptr<ServerSocket>;
 		using ClientSocketRef = std::shared_ptr<ClientSocket>;
 		using SessionFilterRef = std::shared_ptr<SessionFilter>;
@@ -72,7 +73,14 @@ namespace peq {
 			std::function<int(char* buffer, size_t bytes)> recvFunc;
 		};
 
-		class ServerSocket
+		class Socket {
+		public:
+			virtual unsigned id() const = 0;
+		};
+
+		
+
+		class ServerSocket : public Socket
 		{
 		public:
 			static ServerSocketRef create(int port);
@@ -92,7 +100,7 @@ namespace peq {
 			Mac mac;
 		};
 
-		class ClientSocket
+		class ClientSocket : public Socket
 		{
 		public:
 			ClientSocketRef create();
@@ -104,7 +112,6 @@ namespace peq {
 			virtual int send(const char* data, unsigned dataLength) = 0;
 			virtual void disconnect() = 0;
 			virtual bool isDisconnected() const = 0;
-			virtual unsigned id() const = 0;
 			virtual SocketInfo info() const = 0;
 		protected:
 			ClientSocket() = default;
@@ -118,10 +125,9 @@ namespace peq {
 		public:
 			SocketSelectorRef create();
 			virtual ~SocketSelector() {}
-			virtual void add(ClientSocketRef socket) = 0;
-			virtual void remove(ClientSocketRef socket) = 0;
-			virtual void wait(unsigned timeoutms) = 0;
-			std::function<void(ClientSocketRef)> m_readyRead;
+			virtual void add(SocketRef socket) = 0;
+			virtual void remove(SocketRef socket) = 0;
+			virtual std::vector<SocketRef> wait(unsigned timeoutms) = 0;
 		};
 		
 		class Server;
@@ -189,7 +195,6 @@ namespace peq {
 				void add(ClientSocketRef socket, SessionRef handler);
 				void abort();
 			private:
-				SocketSelectorRef _selector;
 				std::condition_variable _condition;
 				std::mutex _mutex;
 				struct NewSocket
