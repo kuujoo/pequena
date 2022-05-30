@@ -155,7 +155,8 @@ void Server::ConnectionTask::execute()
 			_newSockets.clear();
 		}
 
-		auto readSockets = selector->wait(10);
+		auto readSockets = selector->wait(1);
+
 		for (auto it : readSockets) {
 			auto handler = handlers.find(it->id());
 			if (handler != handlers.end())
@@ -269,7 +270,7 @@ void Server::start()
 	selector->add(listenSocket);
 	while (!_stop.load())
 	{
-		auto results = selector->wait(1000);
+		auto results = selector->wait(100);
 		if (results.empty()) {
 			continue;
 		}
