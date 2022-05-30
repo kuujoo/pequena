@@ -1062,12 +1062,6 @@ int HttpSession::send(const char* data, unsigned dataLength)
 	return Session::send(data, dataLength);
 }
 
-int HttpSession::sendAsync(const char* data, unsigned dataLength)
-{
-	resetIdle();
-	return Session::sendAsync(data, dataLength);
-}
-
 int HttpSession::send(http::Response& response)
 {
 	if (response.headers.empty() && response.body.empty()) return 0;

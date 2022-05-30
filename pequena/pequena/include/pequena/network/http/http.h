@@ -303,7 +303,6 @@ namespace peq
 			void makePersistent();
 			void resetIdle();
 			int send(const char* data, unsigned dataLength) override;
-			int sendAsync(const char* data, unsigned dataLength) override;
 		private:
 			void dataAvailable() override;
 			bool _persistent;
