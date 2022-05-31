@@ -66,6 +66,7 @@ int Session::receive(char* data, unsigned dataLength)
 
 int Session::send(const char* data, unsigned dataLength)
 {
+	std::lock_guard<std::mutex> lock(m_sendMutex);
 	if (_filter)
 	{
 		return _filter->send(data, dataLength);

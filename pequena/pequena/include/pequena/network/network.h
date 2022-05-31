@@ -163,6 +163,7 @@ namespace peq {
 			friend class ConnectionTask;
 			ClientSocketRef _socket;
 			SessionFilterRef _filter;
+			std::mutex m_sendMutex;
 		};
 
 		using SessionRef = std::shared_ptr<Session>;
