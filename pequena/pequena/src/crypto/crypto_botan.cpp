@@ -1,6 +1,6 @@
 #ifdef PEQ_BOTAN
 
-#include <pequena/crypto/crypto.h>
+#include "pequena/crypto/crypto.h"
 #include <cstring>
 #include <botan/mac.h>
 #include <botan/hex.h>
