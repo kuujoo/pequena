@@ -206,6 +206,42 @@ namespace
 		}
 	};
 
+	class TLS12Policy : public Botan::TLS::Policy
+	{
+		bool allow_tls10() const override
+		{
+			return false;
+		}
+		bool allow_tls11() const override
+		{
+			return false;
+		}
+		bool allow_dtls10() const override
+		{
+			return false;
+		}
+
+		bool allow_dtls12() const override
+		{
+			return false;
+		}
+		bool allow_tls12() const override {
+			return true;
+		}
+		std::vector<std::string> allowed_ciphers() const override	
+		{
+			auto allowed = Botan::TLS::Policy::allowed_ciphers();
+			std::vector<std::string> filtered;
+			std::copy_if(allowed.cbegin(), allowed.cend(),
+			std::back_inserter(filtered),
+			[](const auto &cipher)
+			{
+				return !(cipher == "AES-128" || cipher == "AES-256");
+			});
+			return filtered;
+		}
+	};
+
 	struct BotanData
 	{
 		Botan::TLS::Channel* server;
@@ -226,7 +262,7 @@ public:
 	SessionFilterBotan(SessionFilter::Mode mode, std::shared_ptr<BotanSertificateContainer> sertificates)
 	{
 		_sertificates = sertificates;
-		data.policy = new Botan::TLS::Policy;
+		data.policy = new TLS12Policy;
 		data.session_manager = new Botan::TLS::Session_Manager_In_Memory(data.rng, 10000);
 		data.callbacks = new BotanFilterCallbacks(this, data.pending_output);
 		data.creds = &_sertificates->botanCreds;
@@ -267,9 +303,10 @@ public:
 	}
 	unsigned receive(char* buffer, unsigned bytes) override
 	{
-		if (data.pending_output.empty()) {
-
-			try {			
+		if (data.pending_output.empty())
+		{
+			try
+			{		
 				unsigned desired = Botan::TLS::TLS_HEADER_SIZE;
 				while (data.pending_output.empty())
 				{
