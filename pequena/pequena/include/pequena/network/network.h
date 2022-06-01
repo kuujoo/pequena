@@ -50,8 +50,8 @@ namespace peq {
 		{
 		public:
 			static SertificateContainerRef create();
-			virtual void addPem(const std::string& sertificate) = 0;
-			virtual void add(const std::string& crt, const std::string &key) = 0;
+			virtual bool addPem(const std::string& sertificate) = 0;
+			virtual bool add(const std::string& crt, const std::string &key) = 0;
 		protected:
 			SertificateContainer() {}
 		};

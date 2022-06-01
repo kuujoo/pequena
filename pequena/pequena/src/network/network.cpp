@@ -7,6 +7,7 @@
 #include <thread>
 #include <iostream>
 #include <sstream>
+#include <filesystem>
 
 using namespace peq;
 using namespace peq::network;
@@ -225,22 +226,48 @@ Server& Server::setPort(unsigned port)
 
 Server& Server::setTLS(const std::string& crt, const std::string &key)
 {
+	if (!std::filesystem::exists(crt) || !std::filesystem::exists(key))
+	{
+		peq::log::error("TLS private key does not exists. TLS is not used!");
+		return *this;
+	}
+
 	if (!_sertificates)
 	{
 		_sertificates = SertificateContainer::create();
 	}
-	_sertificates->add(crt, key);
+
+	if (!_sertificates->add(crt, key))
+	{
+		_sertificates = nullptr;
+		peq::log::error("TLS sertificate error. TLS is not used!");
+		return *this;
+	}
+
 	_tls = true;
 	return *this;
 }
 
 Server& Server::setTLS(const std::string& pem)
 {
+	if (!std::filesystem::exists(pem))
+	{
+		peq::log::error("TLS private key does not exists. TLS is not used!");
+		return *this;
+	}
+
 	if (!_sertificates)
 	{
 		_sertificates = SertificateContainer::create();
 	}
-	_sertificates->addPem(pem);
+
+	if (!_sertificates->addPem(pem))
+	{
+		_sertificates = nullptr;
+		peq::log::error("TLS sertificate error. TLS is not used!");
+		return *this;
+	}
+
 	_tls = true;
 	return *this;
 }

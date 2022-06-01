@@ -1,6 +1,7 @@
 #ifdef PEQ_BOTAN
 
-#include <pequena/network/network.h>
+#include "pequena/network/network.h"
+#include "pequena/log.h"
 #include <botan/tls_server.h>
 #include <botan/tls_client.h>
 #include <botan/build.h>
@@ -33,11 +34,20 @@ namespace
 		ServerCredentials()
 		{
 		}
-		void add(const std::string& server_crt, const std::string& server_key)
+		bool add(const std::string& server_crt, const std::string& server_key)
 		{
 			Botan::System_RNG rng;// Ignored
 			Certificate_Info cert;
-			cert.key.reset(Botan::PKCS8::load_key(server_key, rng));
+			try
+			{
+				cert.key.reset(Botan::PKCS8::load_key(server_key, rng));
+			}
+			catch (std::exception&)
+			{
+				peq::log::error("invalid sertificate key");
+				return false;
+			}
+
 			Botan::DataSource_Stream in(server_crt);
 			while (!in.end_of_data())
 			{
@@ -45,12 +55,13 @@ namespace
 				{
 					cert.certs.push_back(Botan::X509_Certificate(in));
 				}
-				catch (std::exception&)
+				catch (const std::exception& e)
 				{
-
 				}
 			}
 			_creds.push_back(cert);
+
+			return true;
 		}
 
 		std::string getFingerprint() {
@@ -113,16 +124,16 @@ namespace
 		std::vector<std::shared_ptr<Botan::Certificate_Store>> _certstores;
 	};
 
-	class BotanSertificateContainer : public ::SertificateContainer
+	class BotanSertificateContainer : public SertificateContainer
 	{
 	public:
-		void addPem(const std::string& file)
+		bool addPem(const std::string& file) override
 		{
-			botanCreds.add(file, file);
+			return botanCreds.add(file, file);
 		}
-		void add(const std::string& crt, const std::string& key)
+		bool add(const std::string& crt, const std::string& key) override
 		{
-			botanCreds.add(crt, key);
+			return botanCreds.add(crt, key);
 		}
 		ServerCredentials botanCreds;
 	};
@@ -312,6 +323,14 @@ public:
 				{
 					auto asking = std::max(receiveBufferSize, std::min(desired, 1U));
 					int ret = recvFunc((char*)receiveBuffer, asking);
+					if (ret == 0)
+					{
+						break;
+					}
+					if (ret < 0)
+					{
+						break;
+					}
 					desired = data.server->received_data(receiveBuffer, ret);
 				}
 			}
