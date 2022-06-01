@@ -5,8 +5,13 @@
 #include <windows.h>
 #include <winreg.h>
 #include <stdexcept>
+#include <shlwapi.h>
 
+#include "shlobj.h"
 #include <assert.h>
+#include <filesystem>
+
+#pragma comment(lib,"shlwapi.lib")
 
 using namespace peq;
 using namespace peq::platform;
@@ -51,9 +56,9 @@ namespace
 	constexpr char* keyPath = "SOFTWARE\\Microsoft\\Cryptography";
 	constexpr char* machineGuid = "MachineGuid";
 
-	std::string utf8Encode(const char* str, int nchars)
+	std::string utf8Encode(const std::string& str)
 	{
-		return std::string(str);
+		return str;
 	}
 #endif
 
@@ -75,7 +80,11 @@ namespace
 		}
 
 		//bufferSize contains null terminator, so reserve size without it
+#if UNICODE
 		std::wstring str( (size/ sizeof(wchar_t)) - sizeof(wchar_t), (wchar_t)0);
+#else
+		std::string str((size / sizeof(char)) - sizeof(char), (char)0);
+#endif
 
 		if (RegGetValue(HKEY_LOCAL_MACHINE, keyPath, machineGuid, RRF_RT_REG_SZ, nullptr, str.data(), &size) != ERROR_SUCCESS)
 		{
@@ -99,4 +108,21 @@ const std::string peq::platform::machineId()
 		assert(0);
 	}
 	return machineIdStr;
+}
+
+std::string peq::platform::binaryPath()
+{
+
+	TCHAR str[MAX_PATH] ={0};
+	GetModuleFileName(nullptr, str, MAX_PATH);
+	auto utf8 = utf8Encode(str);
+	auto slash = utf8.find_last_of("\\/");
+	return utf8.substr(0, slash);
+}
+
+std::string peq::platform::sharedProgramDataPath()
+{
+	TCHAR szPath[MAX_PATH];
+	SHGetFolderPath(NULL, CSIDL_COMMON_APPDATA, NULL, 0, szPath);
+	return utf8Encode(szPath);
 }

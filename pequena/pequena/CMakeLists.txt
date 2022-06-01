@@ -11,6 +11,8 @@ add_library(pequena
 	"src/log.cpp"
 	"src/services.cpp"
 	"src/time.cpp"
+
+	"src/platform/platform.cpp"
 	$<$<PLATFORM_ID:Windows>:
 	"src/network/network_backend_winsock.cpp"
 	"src/platform/platform_backend_windows.cpp"
@@ -40,7 +42,8 @@ add_library(pequena
 	"libs/lhttp/llhttp.c"
 	"libs/sqlite/sqlite3.c"
 	"libs/hmac_sha256/hmac_sha256.c"
-	"libs/hmac_sha256/sha256.c")
+	"libs/hmac_sha256/sha256.c"
+)
 		
  # included library headers
 target_include_directories(pequena PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/libs")

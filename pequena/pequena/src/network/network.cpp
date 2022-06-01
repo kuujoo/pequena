@@ -128,6 +128,10 @@ void Server::ConnectionTask::awake()
 
 void Server::ConnectionTask::abort()
 {
+	{
+		std::lock_guard<std::mutex> lock(_mutex);
+		_abort = true;
+	}
 	_condition.notify_one();
 }
 
@@ -293,7 +297,6 @@ void Server::start()
 		.start();
 
 	int currentPool = 0;
-
 	peq::network::SocketSelectorRef selector = peq::network::createSocketSelector();
 	selector->add(listenSocket);
 	while (!_stop.load())
