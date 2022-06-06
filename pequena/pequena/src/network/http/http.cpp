@@ -989,7 +989,7 @@ Response Router::route(const Request& request)
 	}
 }
 
-HttpSession::HttpSession() : Session(), _keepAlive(false), _persistent(false), _keepAliveTimeout(15), _keepAlivemMaxRequests(1000), _timeout(10), _requests(0)
+HttpSession::HttpSession() : Session(), _keepAlive(false), _keepAliveTimeout(15), _keepAlivemMaxRequests(1000), _timeout(10), _requests(0)
 {
 	llhttp_settings_init(&_settings);
 	_settings.on_message_complete = &handleOnMessageComplete;
@@ -1068,11 +1068,6 @@ void HttpSession::dataAvailable()
 	}
 }
 
-void HttpSession::makePersistent()
-{
-	_persistent = true;
-}
-
 void HttpSession::resetIdle()
 {
 	_idleStarted = peq::time::epochS();
@@ -1140,18 +1135,20 @@ int HttpSession::send(http::Response&& response)
 
 void HttpSession::update()
 {
-	if (_persistent)
+	if (!_keepAlive)
+	{
+		return;
+	}
+	
+	if (_keepAliveTimeout == HttpSession::InfiniteKeepAlive)
 	{
 		return;
 	}
 
-	if (_keepAlive)
+	if (peq::time::epochS() - _idleStarted > static_cast<uint64_t>(_keepAliveTimeout))
 	{
-		if (peq::time::epochS() - _idleStarted > static_cast<uint64_t>(_keepAliveTimeout))
-		{
-			peq::log::debug("disconnect http session (keep-alive timeout)");
-			disconnect();
-		}
+		peq::log::debug("disconnect http session (keep-alive timeout)");
+		disconnect();
 	}
 }
 
@@ -1163,11 +1160,6 @@ void HttpSession::setKeepaliveTimeout(unsigned seconds)
 void HttpSession::setKeepaliveMaxRequests(unsigned maxRequests) 
 {
 	_keepAlivemMaxRequests = maxRequests;
-}
-
-void HttpSession::setTimeout(unsigned seconds)
-{
-	_timeout = seconds;
 }
 
 int HttpSession::handleOnHeaderField(llhttp_t* h, const char* at, size_t length)

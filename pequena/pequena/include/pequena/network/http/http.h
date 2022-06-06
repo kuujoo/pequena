@@ -289,23 +289,20 @@ namespace peq
 		class HttpSession : public Session
 		{
 		public:
+			static const int InfiniteKeepAlive = 0;
 			HttpSession();
 			virtual ~HttpSession();
 			virtual void httpRequestAvailable(const http::Request& http) = 0;
 		protected:
 			void setKeepaliveTimeout(unsigned seconds);
 			void setKeepaliveMaxRequests(unsigned maxRequests);
-			// this is used if the server does not get any http-requests
-			void setTimeout(unsigned seconds);
 			int send(http::Response& response);
 			int send(http::Response&& response);
 			void update() override final;
-			void makePersistent();
 			void resetIdle();
 			int send(const char* data, unsigned dataLength) override;
 		private:
 			void dataAvailable() override;
-			bool _persistent;
 			bool _keepAlive;
 			unsigned _keepAliveTimeout;
 			unsigned _timeout;
