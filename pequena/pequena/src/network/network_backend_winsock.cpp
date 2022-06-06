@@ -39,11 +39,10 @@ namespace
 	}
 }
 
-
 class WINSOCKClientSocket : public ClientSocket
 {
 public:
-	WINSOCKClientSocket(SOCKET socket) : _socket(socket)
+	WINSOCKClientSocket(SOCKET socket, SocketMode mode) : _socket(socket), _mode(mode)
 	{
 		_id = static_cast<unsigned>(_socket);
 	}
@@ -74,10 +73,18 @@ public:
 		auto result = ::recv(_socket, data, dataLength, 0);
 		if (result == SOCKET_ERROR)
 		{
-			if (WSAGetLastError() == WSAECONNRESET || WSAGetLastError() == WSAECONNABORTED)
+			auto error = WSAGetLastError();
+			if (_mode == SocketMode::NonBlocking && error != WSAEWOULDBLOCK)
 			{
-				_socket = INVALID_SOCKET;
-			}
+				if (error == WSAECONNRESET || error == WSAECONNABORTED)
+				{
+					_socket = INVALID_SOCKET;
+				}
+			}	
+		}
+		if (result == 0)
+		{
+			disconnect();
 		}
 		return result;
 	}
@@ -93,10 +100,15 @@ public:
 				sent += result;
 			}
 			if (result == SOCKET_ERROR) {
-				if (WSAGetLastError() == WSAECONNRESET || WSAGetLastError() == WSAECONNABORTED) {
-					_socket = INVALID_SOCKET;
+				auto error = WSAGetLastError();
+				if (_mode == SocketMode::NonBlocking && error != WSAEWOULDBLOCK)
+				{
+					if (error == WSAECONNRESET || error == WSAECONNABORTED)
+					{
+						_socket = INVALID_SOCKET;
+					}
+					return -1;
 				}
-				return -1;
 			}
 		} while (left > 0);
 
@@ -139,13 +151,14 @@ public:
 private:
 	unsigned _id = 0;
 	SOCKET _socket = INVALID_SOCKET;
+	SocketMode _mode;
 };
 
 
 class WINSOCKServerSocket : public ServerSocket
 {
 public:
-	WINSOCKServerSocket(int port) : _id(0)
+	WINSOCKServerSocket(int port, SocketMode mode) : _id(0), _mode(mode)
 	{
 		struct addrinfo hints;
 		ZeroMemory(&hints, sizeof(hints));
@@ -172,6 +185,17 @@ public:
 			printf("socket failed with error: %ld\n", WSAGetLastError());
 			return;
 		}
+	
+		{
+			ULONG nonblocking = mode == SocketMode::NonBlocking ? 0 : 1;
+			auto result = ioctlsocket(_socket, FIONBIO, &nonblocking);
+			if (result == SOCKET_ERROR)
+			{
+				printf("timeout error: %d\n", WSAGetLastError());
+				return;	// Temporary
+			}
+		}
+
 		{
 			auto v = 5000;	// in milliseconds
 			auto result = setsockopt(_socket, SOL_SOCKET, SO_RCVTIMEO, (char*)&v, sizeof(v));
@@ -213,8 +237,8 @@ public:
 			WSACleanup();
 			return ClientSocketRef();
 		}
-
-		return ClientSocketRef(new WINSOCKClientSocket(clientSocket));
+		// Winsock does nof offer any way to query if socket is set to blocking or non-blocking
+		return ClientSocketRef(new WINSOCKClientSocket(clientSocket, _mode));
 	}
 
 	~WINSOCKServerSocket()
@@ -230,6 +254,7 @@ public:
 		return _id;
 	}
 private:
+	SocketMode _mode;
 	unsigned _id;
 	SOCKET _socket = INVALID_SOCKET;
 	struct addrinfo* _info = nullptr;
@@ -319,9 +344,9 @@ void peq::network::destroy()
 	cleanupWinsock();
 }
 
-ServerSocketRef peq::network::createServerSocket(int port)
+ServerSocketRef peq::network::createServerSocket(int port, SocketMode mode)
 {
-	auto sock = std::shared_ptr<WINSOCKServerSocket>( new WINSOCKServerSocket(port) );
+	auto sock = std::shared_ptr<WINSOCKServerSocket>( new WINSOCKServerSocket(port, mode) );
 	if (!sock->ok())
 	{
 		return std::shared_ptr<ServerSocket>();

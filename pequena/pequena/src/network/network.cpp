@@ -44,9 +44,9 @@ SessionFilterRef SessionFilter::createTLS(SessionFilter::Mode mode, SertificateC
 	return createFilterTLS(mode, sertificates);
 }
 
-ServerSocketRef ServerSocket::create(int port)
+ServerSocketRef ServerSocket::create(int port, SocketMode mode)
 {
-	return createServerSocket(port);
+	return createServerSocket(port, mode);
 }
 
 SocketSelectorRef SocketSelector::create() {
@@ -284,7 +284,7 @@ Server::Server() : _threads(1), _port(80), _tls(false)
 void Server::start()
 {
 
-	auto listenSocket = ServerSocket::create(_port);
+	auto listenSocket = ServerSocket::create(_port, SocketMode::NonBlocking);
 	if (!listenSocket) {
 		peq::log::error("Could not bind server to port: " + std::to_string(_port));
 		return;

@@ -78,12 +78,16 @@ namespace peq {
 			virtual unsigned id() const = 0;
 		};
 
-		
+		enum class SocketMode
+		{
+			NonBlocking,
+			Blocking
+		};
 
 		class ServerSocket : public Socket
 		{
 		public:
-			static ServerSocketRef create(int port);
+			static ServerSocketRef create(int port, SocketMode mode);
 			virtual ~ServerSocket() = default;
 			ServerSocket(const ServerSocket&) = delete;
 			ServerSocket& operator=(const ServerSocket&) = delete;
@@ -103,7 +107,6 @@ namespace peq {
 		class ClientSocket : public Socket
 		{
 		public:
-			ClientSocketRef create();
 			virtual ~ClientSocket() = default;
 			ClientSocket(const ClientSocket&) = delete;
 			ClientSocket& operator=(const ClientSocket&) = delete;
@@ -234,7 +237,7 @@ namespace peq {
 		void awake();
 		void destroy();
 
-		ServerSocketRef createServerSocket(int port);
+		ServerSocketRef createServerSocket(int port, SocketMode mode);
 		SocketSelectorRef createSocketSelector();
 		//
 		SessionFilterRef createFilterTLS(SessionFilter::Mode mode, SertificateContainerRef sertificates);
