@@ -15,6 +15,12 @@ const std::string peq::platform::machineId()
 	return "RETURN_VALID_OSX_MACHINE_ID";
 }
 
+std::string peq::platform::sharedProgramDataPath()
+{
+	assert(0);
+	return "";
+}
+
 std::string peq::platform::binaryPath()
 {
 	assert(0);
