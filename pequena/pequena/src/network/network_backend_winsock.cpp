@@ -28,7 +28,7 @@ namespace
 			auto result = WSAStartup(MAKEWORD(2, 2), &wsaData);
 			if (result != 0)
 			{
-				printf("WSAStartup failed with error: %d\n", result);
+				peq::log::error("WSAStartup failed with error: " + peq::string::from(result) );
 				return;
 			}
 			winsockInited = true;
@@ -172,8 +172,7 @@ public:
 			auto p = std::to_string(port);
 			auto result = getaddrinfo(NULL, p.c_str(), &hints, &_info);
 			if (result != 0) {
-				printf("getaddrinfo failed with error: %d\n", result);
-				WSACleanup();
+				peq::log::error("[WINSOCKSERVER] getaddrinfo failed");
 				return;
 			}
 		}
@@ -183,7 +182,7 @@ public:
 
 		if (_socket == INVALID_SOCKET)
 		{
-			printf("socket failed with error: %ld\n", WSAGetLastError());
+			peq::log::error("[WINSOCKSERVER] socket failed with error:" + peq::string::from(WSAGetLastError()));
 			return;
 		}
 	
@@ -192,8 +191,9 @@ public:
 			auto result = ioctlsocket(_socket, FIONBIO, &nonblocking);
 			if (result == SOCKET_ERROR)
 			{
-				printf("timeout error: %d\n", WSAGetLastError());
-				return;	// Temporary
+				peq::log::error("[WINSOCKSERVER] block/nonblock set error:" + peq::string::from(WSAGetLastError()));
+				closesocket(_socket);
+				return;
 			}
 		}
 
@@ -202,23 +202,24 @@ public:
 			auto result = setsockopt(_socket, SOL_SOCKET, SO_RCVTIMEO, (char*)&v, sizeof(v));
 			if (result == SOCKET_ERROR)
 			{
-				printf("timeout error: %d\n", WSAGetLastError());
+				peq::log::error("[WINSOCKSERVER] timeout set error:" + peq::string::from(WSAGetLastError()));
+				closesocket(_socket);
 				return;	// Temporary
 			}
 		}
 		{
 			auto result = bind(_socket, _info->ai_addr, (int)_info->ai_addrlen);
 			if (result == SOCKET_ERROR) {
-				printf("bind failed with error: %d\n", WSAGetLastError());
+				peq::log::error("[WINSOCKSERVER] bind error:" + peq::string::from(WSAGetLastError()));
+				closesocket(_socket);
 				return;
 			}
 		}
 		{
 			auto result = listen(_socket, SOMAXCONN);
 			if (_socket == SOCKET_ERROR) {
-				printf("listen failed with error: %d\n", WSAGetLastError());
+				peq::log::error("[WINSOCKSERVER] listen error:" + peq::string::from(WSAGetLastError()));
 				closesocket(_socket);
-				WSACleanup();
 				return;
 			}
 		}
@@ -234,8 +235,7 @@ public:
 			return ClientSocketRef();
 		}
 		if (clientSocket == INVALID_SOCKET) {
-			printf("accept failed with error: %d\n", WSAGetLastError());
-			WSACleanup();
+			peq::log::error("[WINSOCKSERVER] accept failed with error:" + peq::string::from(WSAGetLastError()));
 			return ClientSocketRef();
 		}
 		// Winsock does nof offer any way to query if socket is set to blocking or non-blocking
