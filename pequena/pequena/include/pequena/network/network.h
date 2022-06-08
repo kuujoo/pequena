@@ -130,6 +130,7 @@ namespace peq {
 			virtual ~SocketSelector() {}
 			virtual void add(SocketRef socket) = 0;
 			virtual void remove(SocketRef socket) = 0;
+			virtual void wakeUp() = 0;
 			virtual std::vector<SocketRef> wait(unsigned timeoutms) = 0;
 		};
 		
@@ -207,6 +208,7 @@ namespace peq {
 					SessionRef handler;
 				};
 				std::vector<NewSocket> _newSockets;
+				SocketSelectorRef _selector;
 				bool _abort;
 			};
 		public:

@@ -1,4 +1,5 @@
  #include "pequena/network/network.h"
+#include "pequena/log.h"
 #include <cstdlib>
 #include <cstdio>
 #include <cmath>
@@ -265,9 +266,34 @@ private:
 class WINSOCKESelector : public SocketSelector
 {
 public:
-	WINSOCKESelector() : SocketSelector()
+	WINSOCKESelector() : SocketSelector(), _cancelUdpSocket(SOCKET_ERROR)
 	{
-		
+		_cancelUdpSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+
+		// Create udp socket that sends data to itself
+		// This way we can cancel select-call
+		// Maybe we should use some other api ?
+		// This works for now
+		struct sockaddr_in server;
+		server.sin_family = AF_INET;
+		server.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+		server.sin_port = htons(0);
+		if( bind(_cancelUdpSocket ,(struct sockaddr *)&server , sizeof(server)) == SOCKET_ERROR)
+		{
+			peq::log::error("[WINSOCKSELECTOR] could not bind selector loopback socket:" + peq::string::from(WSAGetLastError()));
+			closesocket(_cancelUdpSocket);
+			return;
+		}
+
+		struct sockaddr_in name;
+		int nameLen = sizeof(name);
+		getsockname(_cancelUdpSocket, (struct sockaddr *)&name, &nameLen);
+		if (connect(_cancelUdpSocket, (struct sockaddr *)&name, nameLen) == SOCKET_ERROR)
+		{
+			peq::log::error("[WINSOCKSELECTOR] could not connect selector loopback socket:" + peq::string::from(WSAGetLastError()));
+			closesocket(_cancelUdpSocket);
+			return;
+		}
 	}
 	void add(SocketRef socket) override
 	{
@@ -298,9 +324,15 @@ public:
 			socketMap[(SOCKET)s->id()] = s;
 		}
 
+		if (_cancelUdpSocket != INVALID_SOCKET)
+		{
+			FD_SET(_cancelUdpSocket, &readFds);
+		}
+
 		auto result = select(readFds.fd_count, &readFds, nullptr, nullptr, &tv);
 		if (result < 0) {
-			printf("select failed with error: %d\n", WSAGetLastError());			
+			peq::log::error("[WINSOCKSELECTOR] select failed with error:" + peq::string::from(WSAGetLastError()));
+			return readyReadSockets;
 		}
 
 		if (result == 0)
@@ -311,13 +343,21 @@ public:
 		for (int i = 0; i < readFds.fd_count; i++)
 		{
 			if ( FD_ISSET(readFds.fd_array[i], &readFds) ) 
-			{		
-				auto s = socketMap.find( readFds.fd_array[i] );
-				if (s == socketMap.end())
+			{	
+				if (readFds.fd_array[i] == _cancelUdpSocket)
 				{
-					continue;
+					// drain socket
+					char inBuf[100] = { 0 };
+					recv(_cancelUdpSocket, inBuf, 100, 0);
 				}
-				readyReadSockets.push_back(s->second);
+				else
+				{
+					auto s = socketMap.find(readFds.fd_array[i]);
+					if (s == socketMap.end()) {
+						continue;
+					}
+					readyReadSockets.push_back(s->second);
+				}
 			}
 		}
 
@@ -330,8 +370,16 @@ public:
 			return socket == s.lock();
 		}));
 	}
+
+	void wakeUp() override
+	{
+		char* s = "wakeup";
+		send(_cancelUdpSocket, s, 6,0);
+	}
 private:
+
 	std::vector<std::weak_ptr<peq::network::Socket>> _sockets;
+	SOCKET _cancelUdpSocket;
 };
 
 void peq::network::awake()

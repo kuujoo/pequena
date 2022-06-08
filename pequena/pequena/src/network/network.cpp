@@ -124,6 +124,7 @@ Server::ConnectionTask::ConnectionTask() : _abort(false)
 
 void Server::ConnectionTask::awake()
 {
+	_selector = createSocketSelector();
 }
 
 void Server::ConnectionTask::abort()
@@ -132,6 +133,7 @@ void Server::ConnectionTask::abort()
 		std::lock_guard<std::mutex> lock(_mutex);
 		_abort = true;
 	}
+	_selector->wakeUp();
 	_condition.notify_one();
 }
 
@@ -140,8 +142,6 @@ void Server::ConnectionTask::execute()
 	std::vector<ClientSocketRef> sockets;
 	std::map<unsigned, SessionRef> handlers;
 	std::vector<ClientSocketRef> dcSockets;
-
-	SocketSelectorRef selector = createSocketSelector();
 
 	while (!_abort)
 	{
@@ -153,7 +153,7 @@ void Server::ConnectionTask::execute()
 
 			for (auto it : _newSockets) {
 				sockets.push_back(it.socket);
-				selector->add(it.socket);
+				_selector->add(it.socket);
 				handlers[it.socket->id()] = it.handler;
 				it.handler->connected();
 
@@ -161,7 +161,7 @@ void Server::ConnectionTask::execute()
 			_newSockets.clear();
 		}
 
-		auto readSockets = selector->wait(1);
+		auto readSockets = _selector->wait(1000);
 
 		for (auto it : readSockets) {
 			auto handler = handlers.find(it->id());
@@ -191,7 +191,7 @@ void Server::ConnectionTask::execute()
 
 		for (auto it : dcSockets)
 		{
-			selector->remove(it);
+			_selector->remove(it);
 			sockets.erase(std::remove(sockets.begin(), sockets.end(), it));
 			handlers.erase(it->id());
 		}
@@ -213,6 +213,7 @@ void Server::ConnectionTask::add(ClientSocketRef socket,  SessionRef handler)
 		ns.socket = socket;
 		_newSockets.push_back(ns);
 	}
+	_selector->wakeUp();
 	_condition.notify_one();
 }
 
