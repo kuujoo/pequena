@@ -13,6 +13,7 @@ namespace peq
 		class Files
 		{
 		public:
+			Files() = default;
 			Files(const std::string& fileRoot);
 			~Files();
 			std::string getPath(const std::string& url) const;
