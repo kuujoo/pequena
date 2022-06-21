@@ -21,6 +21,7 @@ namespace peq
 		}
 		std::string base64Encode(const void* data, size_t datalen);
 		std::string base64UrlEncode(const void* data, size_t datalen);
+		std::string urlDecode(const std::string& str);
 		std::vector<uint8_t> base64UrlDecode(const std::string& in);
 		std::vector<uint8_t> base64Decode(const std::string& in);
 		std::string hex(const void* data, size_t datalen);

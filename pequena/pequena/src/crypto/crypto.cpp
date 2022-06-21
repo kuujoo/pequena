@@ -26,3 +26,28 @@ std::vector<uint8_t> peq::crypto::base64UrlDecode(const std::string& in)
 	memcpy(r.data(), d.data(), d.size());
 	return r;
 }
+
+std::string peq::crypto::urlDecode(const std::string& str)
+{
+	std::string result;
+	result.reserve(str.size());
+	for (unsigned i = 0; i < str.size(); i++)
+	{
+		if (str[i] == '%' && (i + 2) < str.size())
+		{
+			auto hex = str.substr(i + 1, 2);
+			auto d = strtol(hex.c_str(), nullptr, 16);
+			result.push_back(static_cast<char>(d));
+			i += 2;
+		}
+		else if(str[i] == ' ')
+		{
+			result.push_back(' ');
+		}
+		else
+		{
+			result.push_back(str[i]);
+		}
+	}
+	return result;
+}
